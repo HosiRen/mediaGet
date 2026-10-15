@@ -9,6 +9,7 @@
  * 就在这里加一行导出并升 minor；消费者（mediaGet-desktop LOCAL_PARSERS）随之接入。
  */
 export { PLATFORM_INFO, identifyPlatform, getPlatformName } from "./lib/platforms";
+export type { PlatformInfoEntry } from "./lib/platforms";
 export { extractUrlFromShareText } from "./lib/share-text";
 export { isBlockedText, BLOCKED_HOSTS } from "./lib/blockedPlatforms";
 export { normalizeResult } from "./lib/normalize-result";
