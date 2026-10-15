@@ -40,15 +40,14 @@ jobs:
           fi
 
       - name: Build parse-core
-        working-directory: packages/parse-core
-        run: npm run build
+        run: npx tsup packages/parse-core/src/index.ts --format cjs,esm --dts --out-dir packages/parse-core/dist --clean
 
       - name: Run tests
         run: npm test
 
       - name: Pack tarball
         working-directory: packages/parse-core
-        run: npm pack
+        run: npm pack --ignore-scripts
 
       - name: Compute SHA-256
         working-directory: packages/parse-core
