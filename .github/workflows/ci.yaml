@@ -44,5 +44,8 @@ jobs:
       - name: Typecheck
         run: npx tsc --noEmit
 
+      - name: Check parse-core dependency boundaries
+        run: node scripts/check-parse-core-deps.mjs
+
       - name: Next build
         run: npm run build

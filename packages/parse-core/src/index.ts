@@ -55,3 +55,9 @@ export type {
   ParsedVideoQuality,
 } from "./types/api";
 export type { VideoPlatformKey } from "./config/video-platforms";
+
+// —— 运行时配置注入（桌面端专用）——
+export { setKernelConfig, getKernelConfig, type KernelConfig } from "./config";
+
+// —— 版本信息（供消费者展示内核版本；与 package.json version 同步）——
+export const PARSE_CORE_VERSION = "0.1.0";
