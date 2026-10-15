@@ -61,4 +61,4 @@ export type { VideoPlatformKey } from "./config/video-platforms";
 export { setKernelConfig, getKernelConfig, type KernelConfig } from "./config";
 
 // —— 版本信息（供消费者展示内核版本；与 package.json version 同步）——
-export const PARSE_CORE_VERSION = "0.1.0";
+export const PARSE_CORE_VERSION = "0.1.1";

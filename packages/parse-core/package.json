@@ -1,6 +1,6 @@
 {
   "name": "@mediaget/parse-core",
-  "version": "0.1.0",
+  "version": "0.1.1",
   "type": "module",
   "description": "mediaGet 统一解析内核——web 与桌面端共用的单一代码源（docs/ARCHITECTURE.md §8）。",
   "license": "ISC",
