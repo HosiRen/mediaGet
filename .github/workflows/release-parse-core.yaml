@@ -26,16 +26,27 @@ jobs:
         with:
           node-version: 22
           cache: "npm"
+          registry-url: "https://registry.npmjs.org"
 
       - name: Install dependencies
         run: npm ci
 
       - name: Verify version matches tag
         run: |
-          TAG_VERSION="${GITHUB_REF#refs/tags/parse-core-v}"
           PKG_VERSION=$(node -p "require('./packages/parse-core/package.json').version")
+          case "$GITHUB_REF" in
+            refs/tags/parse-core-v*) TAG_VERSION="${GITHUB_REF#refs/tags/parse-core-v}" ;;
+            *) TAG_VERSION="$PKG_VERSION" ;;  # workflow_dispatch：无 tag ref，以 package.json 为准
+          esac
           if [ "$TAG_VERSION" != "$PKG_VERSION" ]; then
             echo "::error::Tag version ($TAG_VERSION) does not match package.json version ($PKG_VERSION)"
+            exit 1
+          fi
+          # PARSE_CORE_VERSION 是桌面 About 页显示的版本号，与 package.json 各写一份，漂移了就发错版本
+          EMBODED=$(grep -o 'export const PARSE_CORE_VERSION = "[^"]*"' packages/parse-core/src/index.ts | cut -d'"' -f2)
+          echo "package.json=$PKG_VERSION  src/index.ts=$EMBODED"
+          if [ "$EMBODED" != "$PKG_VERSION" ]; then
+            echo "::error::PARSE_CORE_VERSION in src/index.ts ($EMBODED) != package.json version ($PKG_VERSION)"
             exit 1
           fi
 
@@ -59,6 +70,40 @@ jobs:
           sha256sum "$TARBALL" > "${TARBALL}.sha256"
           echo "TARBALL=$TARBALL" >> $GITHUB_ENV
 
+      # 发布的就是上面 pack 出来的那个文件本体，两个渠道拿到的是同一份字节。
+      - name: Publish to npm
+        working-directory: packages/parse-core
+        env:
+          NODE_AUTH_TOKEN: ${{ secrets.NPM_TOKEN }}
+        run: |
+          npm publish "./${TARBALL}" --access public --ignore-scripts \
+            --registry=https://registry.npmjs.org
+
+      - name: Verify registry copy matches packed tarball
+        run: |
+          PKG_VERSION=$(node -p "require('./packages/parse-core/package.json').version")
+          URL=""
+          for i in 1 2 3 4 5; do
+            URL=$(npm view "@mediaget/parse-core@${PKG_VERSION}" dist.tarball \
+              --prefer-online --registry=https://registry.npmjs.org || true)
+            [ -n "$URL" ] && break
+            echo "registry 尚未可见该版本（第 $i 次尝试），等待 10s…"
+            sleep 10
+          done
+          if [ -z "$URL" ]; then
+            echo "::error::published version never became visible on the registry"
+            exit 1
+          fi
+          curl -fsSL -o /tmp/registry-copy.tgz "$URL"
+          LOCAL=$(sha256sum "packages/parse-core/${TARBALL}" | cut -d' ' -f1)
+          REMOTE=$(sha256sum /tmp/registry-copy.tgz | cut -d' ' -f1)
+          echo "npm:    $REMOTE"
+          echo "packed: $LOCAL"
+          if [ "$LOCAL" != "$REMOTE" ]; then
+            echo "::error::registry tarball differs from the packed tarball attached to the Release"
+            exit 1
+          fi
+
       - name: Create GitHub Release
         uses: softprops/action-gh-release@v2
         with:
@@ -66,14 +111,12 @@ jobs:
           body: |
             Auto-generated release for @mediaget/parse-core v${{ env.TARBALL }}.
 
-            **Installation:**
-            ```json
-            {
-              "@mediaget/parse-core": "https://github.com/hotier/mediaGet/releases/download/parse-core-v${{ env.TARBALL }}/mediaget-parse-core-${{ env.TARBALL }}.tgz"
-            }
+            **npm（主渠道）:**
+            ```sh
+            npm install @mediaget/parse-core
             ```
 
-            **SHA-256 checksum:** See attached .sha256 file.
+            **离线 / 审计 / 非 npm 用户:** 下载本 Release 附带的 .tgz（与 npm 上的副本字节一致，见 .sha256）。
           files: |
             packages/parse-core/${{ env.TARBALL }}
             packages/parse-core/${{ env.TARBALL }}.sha256

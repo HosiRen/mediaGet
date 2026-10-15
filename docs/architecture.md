@@ -92,7 +92,7 @@ CORS → IP 黑名单蜜罐（`lib/honeypot.ts`）→ IP 级限流 60 次/分（
 
 ## 8. parse-core 版本化与 semver 规则
 
-`packages/parse-core` 是 web 与桌面端共用的解析内核单一代码源，发布为 `@mediaget/parse-core` 版本化工件（GitHub Release tarball）。版本号遵循语义化版本（semver）：
+`packages/parse-core` 是 web 与桌面端共用的解析内核单一代码源，发布为 `@mediaget/parse-core` 版本化工件，**双通道同源**：npm 注册表为主渠道，GitHub Release 附带同一份 tarball（含 `.sha256`）供离线/审计/非 npm 用户。release workflow 先 `npm pack` 出 tarball，再用 `npm publish <tarball>` 上传**同一个文件本体**，并在校验步比对 registry 副本的 sha256 与本地 tarball 一致，不一致直接红叉。版本号遵循语义化版本（semver）：
 
 | 变更类型 | 版本递增 | 示例 |
 | --- | --- | --- |
