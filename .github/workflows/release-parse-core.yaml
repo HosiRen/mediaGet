@@ -40,7 +40,10 @@ jobs:
           fi
 
       - name: Build parse-core
-        run: npx tsup packages/parse-core/src/index.ts --format cjs,esm --dts --out-dir packages/parse-core/dist --clean
+        working-directory: packages/parse-core
+        run: |
+          npm install
+          npm run build
 
       - name: Run tests
         run: npm test
