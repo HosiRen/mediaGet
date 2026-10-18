@@ -3,7 +3,7 @@
 mediaGet 的统一解析内核：把各平台分享链接解析成**可直接下载的媒体直链 + 统一字段**。
 web、桌面端、CLI 共用这一份代码，平台字段差异、反爬策略、超时与节流都在这里收口。
 
-- 当前版本：`1.1.0`（以 `package.json` 为准，运行时读 `PARSE_CORE_VERSION`）
+- 当前版本：`1.1.1`（以 `package.json` 为准，运行时读 `PARSE_CORE_VERSION`）
 - 运行环境：Node.js **>= 22**
 - 产物：ESM + CJS + `.d.ts`，只有一个入口 `"."`
 - 无副作用导入：模块加载期不发网络请求；环境变量的读取时机见 §6.2
@@ -59,7 +59,7 @@ if (res.code !== 200) {
 npm i @mediaget/parse-core
 
 # 离线 / 审计：GitHub Release 附带同源 tarball 与 .sha256
-npm i ./mediaget-parse-core-1.1.0.tgz
+npm i ./mediaget-parse-core-1.1.1.tgz
 ```
 
 ```js
@@ -141,7 +141,7 @@ const res = await unifiedParseLocal("", {
 });
 ```
 
-实际可用性以注册表是否挂载 `parseVideoId` 为准。1.1.0 只有：
+实际可用性以注册表是否挂载 `parseVideoId` 为准。1.1.1 只有：
 
 | 平台 | ID 模式 |
 | --- | --- |
@@ -319,7 +319,7 @@ setKernelConfig({
 
 ### 6.2 配置读取时机（重要）
 
-1.1.0 中只有 `douyinCookie`、`kuaishouCookie` 是**每次解析时**读取，`setKernelConfig` 运行期立即生效。
+1.1.1 中只有 `douyinCookie`、`kuaishouCookie` 是**每次解析时**读取，`setKernelConfig` 运行期立即生效。
 
 其余配置（B站、Instagram、小红书、Twitter fixer、YouTube、yt-dlp）在**模块加载时**读取一次。因此：
 

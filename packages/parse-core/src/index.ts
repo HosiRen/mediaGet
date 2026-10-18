@@ -173,4 +173,4 @@ export const parserRegistry = parserRegistryRaw as unknown as Record<string, Reg
 export const resolveLocalParser = resolveLocalParserRaw as ParserGetter;
 
 // —— 版本信息（供消费者展示内核版本；与 package.json version 同步，CI 比对拦截）——
-export const PARSE_CORE_VERSION = "1.1.0";
+export const PARSE_CORE_VERSION = "1.1.1";
