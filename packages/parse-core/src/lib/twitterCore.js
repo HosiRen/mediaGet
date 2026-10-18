@@ -18,6 +18,17 @@ function formatSeconds(sec) {
   return h > 0 ? `${h}:${pad(m)}:${pad(ss)}` : `${m}:${pad(ss)}`;
 }
 
+/**
+ * 秒 → 毫秒。契约的 `duration`（顶层与 `videos[]`）全平台都是毫秒，
+ * 而 X 的三条来源分支给的是秒，统一在此换算，`durationFormat` 仍按秒算。
+ * @param {number|undefined} sec
+ * @returns {number|undefined}
+ */
+function secToMs(sec) {
+  const n = Number(sec);
+  return Number.isFinite(n) && n > 0 ? n * 1000 : undefined;
+}
+
 /** 数值归一：>0 的有限数字返回原值，其余（缺失/0/非法）返回 undefined */
 function num(v) {
   const n = Number(v);
@@ -436,7 +447,7 @@ function buildFxResult(t) {
     videos.push({
       title: "",
       url: u,
-      duration: durationSec,
+      duration: secToMs(durationSec),
       durationFormat: formatSeconds(durationSec),
       cover: thumb || "",
     });
@@ -541,7 +552,7 @@ function buildVxtwitterResult(t) {
       videos.push({
         title: "",
         url: m.url,
-        duration: durationSec,
+        duration: secToMs(durationSec),
         durationFormat: formatSeconds(durationSec),
         cover: m.thumbnail_url || "",
       });
@@ -701,7 +712,7 @@ async function parseViaSyndication(tweetId) {
       videos.push({
         title: "",
         url: mp4,
-        duration: durationSec,
+        duration: secToMs(durationSec),
         durationFormat: formatSeconds(durationSec),
         cover: src,
       });
@@ -723,7 +734,7 @@ async function parseViaSyndication(tweetId) {
       videos.push({
         title: "",
         url: mp4,
-        duration: durationSec,
+        duration: secToMs(durationSec),
         durationFormat: formatSeconds(durationSec),
         cover: json.video?.poster || "",
       });

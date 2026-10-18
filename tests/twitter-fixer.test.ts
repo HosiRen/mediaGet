@@ -194,13 +194,13 @@ describe("fxTwitter 适配器 (buildFxResult)", () => {
     expect(d.videos).toEqual([
       expect.objectContaining({
         url: "https://example.com/video1.mp4",
-        duration: 65,
+        duration: 65000,
         durationFormat: "1:05",
         cover: "https://example.com/thumb1.jpg",
       }),
       expect.objectContaining({
         url: "https://example.com/video2.mp4",
-        duration: 10,
+        duration: 10000,
         durationFormat: "0:10",
         cover: "https://example.com/thumb2.jpg",
       }),
@@ -415,12 +415,12 @@ describe("vxtwitter 适配器 (buildVxtwitterResult + pickVxtweet)", () => {
     expect(d.videos).toEqual([
       expect.objectContaining({
         url: "https://example.com/video.mp4",
-        duration: 65,
+        duration: 65000,
         durationFormat: "1:05",
       }),
       expect.objectContaining({
         url: "https://example.com/video2.mp4",
-        duration: 20,
+        duration: 20000,
         durationFormat: "0:20",
       }),
     ]);

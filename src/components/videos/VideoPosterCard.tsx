@@ -33,10 +33,10 @@ export interface PosterPart {
   cover?: string;
 }
 
-type AccentKey = "blue" | "red" | "orange" | "pink" | "neutral" | "purple" | "dy";
+type AccentKey = "blue" | "red" | "orange" | "pink" | "neutral" | "dy";
 
 const ACCENTS: Record<AccentKey, string> = {
-  // B站 / 皮皮虾 / 皮皮搞笑
+  // B站
   blue: "from-[#00aeec] to-[#4dc9ff]",
   // 微博
   red: "from-[#e6162d] to-[#ff4d6a]",
@@ -46,8 +46,6 @@ const ACCENTS: Record<AccentKey, string> = {
   pink: "from-[#ff2442] to-[#ff5c7c]",
   // 通用平台
   neutral: "from-neutral-500 to-neutral-400",
-  // QQ音乐
-  purple: "from-purple-500 to-violet-500",
   // 抖音
   dy: "from-[#fe2c55] to-[#ff6b8a]",
 };
