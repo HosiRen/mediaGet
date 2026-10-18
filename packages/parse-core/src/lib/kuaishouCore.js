@@ -4,6 +4,7 @@
 import { TIMEOUT, UA_CHROME_WIN126, UA_IOS_SAFARI_16_6 } from "./http";
 import { logger } from "./api-utils";
 import { getConfigOrEnv } from "../config";
+import { buildQualityList } from "./quality";
 
 /**
  * 分享页抓取超时：10s。**不在公共档位上**（DEFAULT 8s / LONG 15s），是快手链路的实测取值，
@@ -497,6 +498,50 @@ class KuaishouParser {
           videoData.photoUrl = rep.backupUrl[0];
           break;
         }
+      }
+    }
+    // 清晰度档位表：manifest 的 `quality` 是相对分（实测 1.5），不能当高度用；
+    // 真正可展示的是 `qualityType`（如 "720p"）与 `height`。同一档位会同时下发
+    // avc / hevc 两条（qualityType 相同），浏览器兼容优先 avc；其余按高度降序列出。
+    if (photo.manifest && Array.isArray(photo.manifest.adaptationSet)) {
+      const byTier = new Map();
+      for (const set of photo.manifest.adaptationSet) {
+        for (const rep of Array.isArray(set.representation) ? set.representation : []) {
+          if (!rep || rep.hidden === true) continue;
+          const url =
+            (rep.url && rep.url.startsWith("http") && rep.url) ||
+            (Array.isArray(rep.backupUrl) &&
+              rep.backupUrl.find((u) => typeof u === "string" && u.startsWith("http"))) ||
+            "";
+          if (!url) continue;
+          const height = Number(rep.height) || 0;
+          const label = String(rep.qualityType || (height ? `${height}p` : ""));
+          const key = label || `${Number(rep.width) || 0}x${height}`;
+          // avc 权重高于 hevc；同编码再按峰值码率取高
+          const rank =
+            (rep.videoCodec === "hevc" ? 0 : 1) * 1e9 +
+            (Number(rep.maxBitrate) || 0);
+          const prev = byTier.get(key);
+          if (!prev || rank > prev.rank) {
+            byTier.set(key, { url, label, height, rank });
+          }
+        }
+      }
+      const sorted = [...byTier.values()].sort(
+        (a, b) => b.height - a.height || b.rank - a.rank
+      );
+      const qualities = buildQualityList(
+        sorted.map((tier) => ({
+          quality: tier.height,
+          label: tier.label,
+          url: tier.url,
+        }))
+      );
+      if (qualities) {
+        videoData.qualities = qualities;
+        // 主直链与下拉首档保持一致：主通道的 mainMvUrls 是默认档，
+        // 当 manifest 确实给出多档时，最高档才是用户预期的主直链。
+        videoData.photoUrl = qualities[0].url;
       }
     }
     // 封面：coverUrls 优先。同一张图官方下发多个 CDN 节点，除首节点外作为备选透出，

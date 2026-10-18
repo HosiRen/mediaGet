@@ -239,6 +239,12 @@ describe("微博：桌面双接口主通道 + 手机降级", () => {
     expect(json.data.duration).toBe(13000);
     // 单P 不下发 videos，多P 才逐条列出
     expect(json.data.videos).toBeUndefined();
+    // playback_list 全档位透出：按档位降序，type=3 的 scrubber 不能混进下拉
+    expect(json.data.qualities).toEqual([
+      { quality: 1080, label: "1080p", url: U1080 },
+      { quality: 720, label: "720p", url: U720 },
+      { quality: 480, label: "480p", url: "https://f.video.weibocdn.com/o0/CCC480.mp4" },
+    ]);
     // scrubber_hd 是 type=3 的进度条预览图，不能被当成第二P
     expect(json.data.cover).toContain("cover.jpg");
     expect(json.data.cover).not.toContain("scrub");
@@ -407,6 +413,8 @@ describe("微博：桌面双接口主通道 + 手机降级", () => {
     expect(json.data.url).toBe(U1080);
     expect(json.data.qualityLabel).toBe("1080p");
     expect(json.data.duration).toBe(9000);
+    // 混排分支的视频项同样带全档位表
+    expect(json.data.qualities?.map((q) => q.label)).toEqual(["1080p", "720p"]);
     expect(unproxify(json.data.cover)).toContain("/orj480/mix-cover.jpg");
     // 视频照常是主媒体，图片作为图集并存，且按 items 顺序取 largest 档
     expect(json.data.images).toHaveLength(2);
@@ -441,8 +449,12 @@ describe("微博：桌面双接口主通道 + 手机降级", () => {
     expect(json.data.videos.map((v) => v.qualityLabel)).toEqual(["1080p", "720p"]);
     expect(json.data.videos[1].url).toBe("https://f.video.weibocdn.com/o0/DDD720.mp4");
     expect(json.data.videos.map((v) => v.duration)).toEqual([11000, 12000]);
+    // 档位表跟着每一 P 走：P1 两档，P2 只有一档时不造下拉
+    expect(json.data.videos[0].qualities.map((q) => q.label)).toEqual(["1080p", "720p"]);
+    expect("qualities" in json.data.videos[1]).toBe(false);
     // P2 只有 720p：顶层写「1080p」会误导成整条微博的档位
     expect("qualityLabel" in json.data).toBe(false);
+    expect("qualities" in json.data).toBe(false);
     expect("duration" in json.data).toBe(false);
   });
 

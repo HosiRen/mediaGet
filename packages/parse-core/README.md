@@ -240,9 +240,17 @@ interface ApiResponse {
 | `time` | 发布时间，**单位不统一**（见 5.4） |
 | `stat` | 互动统计（B站：view/danmaku/reply/favorite/coin/share/like） |
 | `favorite` / `reply` / `share` / `like` 等 | 平台顶层计数，与 `stat.*` 分属两套来源 |
-| `qualities` | 可直接下载的清晰度档位列表 |
+| `qualities` | 可直接下载的清晰度档位列表（形状与放置见下） |
 | `embedOnly` | 直链源不可用、仅官方嵌入可用的降级标记 |
 | `failType` | 失败细分类型（YouTube） |
+
+清晰度档位 `qualities`：
+
+- 形状为 `{ quality, label, url }`。`quality` 是平台档位值——B站为 qn（如 112）；其余平台为高度 px（如 1080），无高度时退回码率（如 2176000）。`label` 只用于展示，`url` 是该档直链。
+- 放置：单视频挂 `data.qualities`；多P/多分P 挂 `videos[].qualities`，顶层不写整体档位（避免 P1 的档位被误读为整条内容）。
+- **不足 2 档不下发**（`buildQualityList` 统一收口）；单档继续由 `qualityLabel` 徽标展示，前端只在 >1 档时渲染下拉。
+- 现有产出平台：B站、微博、快手、小红书、抖音、X、Instagram、TikTok。YouTube 只收「合流（含音轨）」档位。同一档位下发多条编码时先归并：快手优先 avc，X 取高码率；URL 重复项丢弃。
+- `url` 与档位表首项保持一致：上游同时给「默认直链 + 档位表」时，主直链跟随最高档（快手 `mainMvUrls`、抖音默认 `play_addr` 均如此处理）。
 
 完整声明见 `src/types/api.ts`。
 

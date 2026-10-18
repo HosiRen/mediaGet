@@ -37,7 +37,8 @@
 | `images` | string[] | 图集（图文内容） |
 | `type` | string | 内容类型：`video` / `image` / `music` / `text` |
 | `duration` | number | 时长（**毫秒，全平台统一口径**，含 B站分P） |
-| `videos` | array | 多分P/多清晰度列表（bilibili） |
+| `videos` | array | 多分P/多清晰度列表（B站、微博多P、X 多视频等） |
+| `qualities` | array | 可下载清晰度档位 `{quality,label,url}`；单视频挂顶层，多P挂 `videos[]`；**不足 2 档不下发** |
 | `name` / `lyrics` / `core` / `copyright` | string | 音乐类扩展字段（汽水音乐） |
 
 > 兼容说明：归一化**保留**各平台原始字段（如快手的 `photoUrl`、`caption` 等），同时新增上述统一字段，外部旧调用方不受影响。
@@ -45,6 +46,8 @@
 > 数字型 id（如 B站 `owner.mid`）一律收成 string，收不拢的计数写法（小红书 `"1.2万"`）原样保留。
 >
 > `time`（发布时间）**口径不统一**，按平台原样透传：抖音/小红书/B站为 unix 秒，X/Instagram/YouTube 为毫秒时间戳，微博为可 `new Date()` 解析的日期串——消费方需三选一兼容处理。
+>
+> **清晰度档位 `qualities`**：单视频挂 `data.qualities`，多P/多分P 挂 `videos[].qualities`（顶层不写整体档位）。`quality` 为平台档位值（B站 qn；其余平台为高度 px，缺失时退码率），`label` 仅展示，`url` 为该档直链。**不足 2 档不下发**，单档仍由 `qualityLabel` 徽标展示。当前产出平台：B站、微博、快手、小红书、抖音、X、Instagram、TikTok；同档多编码先归并（快手优先 avc，X 取高码率），URL 重复项丢弃。
 >
 > 历史变更：此前 bilibili 成功返回 `code: 1`、字段散落在顶层（`title`/`imgurl`/`user`）且 `data` 为分P数组——现已统一为 `code: 200` + 顶层字段移入 `data` + 分P 列表放入 `data.videos`。
 >
@@ -392,7 +395,7 @@ GET /api/kuaishou?url=https://v.kuaishou.com/abcdEF
 | 字段 | 作品接口 show | 作者接口 profile/info | 手机通道 |
 |------|---------------|----------------------|----------|
 | title / desc / time / like / reply / share / cover / url / images / videos | ✅ | — | ✅ |
-| qualityLabel（单P 顶层，多P 落 `videos[].qualityLabel`）、duration（毫秒，同上） | ✅ 1080p | — | 封顶 720p 且无文案 |
+| qualityLabel / qualities（单P 顶层，多P 落 `videos[]`；qualities 为 playback_list 全档位）、duration（毫秒，同上） | ✅ 1080p | — | 封顶 720p 且无文案 |
 | ipRegion | ✅ | — | — |
 | totalFavorited | ✅ 内嵌 `user.status_total_counter` | ✅ | — |
 | sign / followingCount / followerCount | — | ✅ 精确整数 | ✅ 粉丝是四舍五入串 |

@@ -208,6 +208,7 @@ export default function WeiboVideo({ data }: WeiboVideoProps) {
           accent="red"
           inline
           parts={hasMultiVideo ? videos : undefined}
+          qualities={weiboData.qualities}
           downloadName={downloadName}
           downloadText={hasMultiVideo ? "下载视频" : undefined}
           onDownloadClick={hasMultiVideo ? scrollToDownload : undefined}
@@ -297,8 +298,8 @@ export default function WeiboVideo({ data }: WeiboVideoProps) {
       {/* 微博信息：发布时间 / 点赞 / 评论 / 转发（博主卡已展示作者信息） */}
       <ParseInfoPanel platform="weibo" data={weiboData} title="微博信息" />
 
-      {/* 多P下载选项：分P逐条列出，每条一个下载按钮（微博每P单一清晰度直链，
-          档位文案来自桌面 playback_list 最高档，故逐P展示徽标）。
+      {/* 多P下载选项：分P逐条列出，每条一个下载按钮。
+          多档位视频每P行内显示清晰度下拉（playback_list 全档位），单档仍展示徽标。
           文件名带P序号，逐P下载互不覆盖 */}
       {hasVideo && hasMultiVideo && (
         <Card id="weibo-download" className="p-5 scroll-mt-24">
@@ -351,6 +352,7 @@ export default function WeiboVideo({ data }: WeiboVideoProps) {
                 durationText={item.durationFormat}
                 badge={item.qualityLabel}
                 href={item.url}
+                qualities={item.qualities}
                 buildHref={(url) =>
                   `/api/video-proxy?url=${encodeURIComponent(
                     url

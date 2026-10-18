@@ -282,6 +282,71 @@ describe("kuaishou 内核 H5 取数通道：id 转投 fw/photo", () => {
 });
 
 /**
+ * manifest 清晰度档位。
+ *
+ * H5 INIT_STATE 的 `manifest.adaptationSet[].representation[]` 才是全档位表：
+ * `quality` 是相对分（实测 1.5）不能当高度，展示档位取 `qualityType`/`height`；
+ * 同一档位会同时下发 avc / hevc 两条，必须归并并优先浏览器兼容的 avc。
+ * 只有一档时不输出下拉（buildQualityList 统一收口）。
+ */
+describe("kuaishou manifest 档位表", () => {
+  const rep = (height, codec, url, extra = "") =>
+    `{"qualityType":"${height}p","height":${height},"width":${Math.round((height * 16) / 9)},` +
+    `"videoCodec":"${codec}","maxBitrate":${codec === "hevc" ? 1500 : 1200},` +
+    `"url":"${url}",${extra ? `${extra},` : ""}"quality":1.5}`;
+  const FIXED = "https://txmov2.a.kwimgs.com/upic";
+
+  beforeEach(() => {
+    vi.restoreAllMocks();
+    process.env.VITEST = "true";
+  });
+
+  afterEach(() => {
+    vi.unstubAllGlobals();
+    vi.restoreAllMocks();
+  });
+
+  it("多档：按高度降序、同档去重取 avc、跳过 hidden，主直链跟最高档", async () => {
+    const reps = [
+      rep(720, "hevc", `${FIXED}/hevc720.mp4`),
+      rep(720, "avc", `${FIXED}/avc720.mp4`),
+      rep(1080, "avc", `${FIXED}/avc1080.mp4`),
+      rep(2160, "hevc", `${FIXED}/hidden2160.mp4`, '"hidden":true'),
+    ].join(",");
+    const page =
+      `<html><body><script>window.INIT_STATE = {"detail":{"photoId":"3xq1","caption":"档位",` +
+      `"userName":"作者","mainMvUrls":[{"url":"${FIXED}/default.mp4"}],` +
+      `"manifest":{"adaptationSet":[{"representation":[${reps}]}]}}};</script></body></html>`;
+    stubNet(null, { "chenzhongtech.com/fw/photo/3xq1": page });
+
+    const res = await kuaishouCore.parseKuaishou("https://www.kuaishou.com/photo/3xq1");
+
+    expect(res.code).toBe(200);
+    expect(res.data.qualities).toEqual([
+      { quality: 1080, label: "1080p", url: `${FIXED}/avc1080.mp4` },
+      { quality: 720, label: "720p", url: `${FIXED}/avc720.mp4` },
+    ]);
+    // mainMvUrls 只是默认档；manifest 有多档时主直链跟最高档
+    expect(res.data.photoUrl).toBe(`${FIXED}/avc1080.mp4`);
+  });
+
+  it("只有一档：不出 qualities，主直链维持 mainMvUrls", async () => {
+    const reps = rep(720, "avc", `${FIXED}/only720.mp4`);
+    const page =
+      `<html><body><script>window.INIT_STATE = {"detail":{"photoId":"3xq2","caption":"单档",` +
+      `"userName":"作者","mainMvUrls":[{"url":"${FIXED}/default.mp4"}],` +
+      `"manifest":{"adaptationSet":[{"representation":[${reps}]}]}}};</script></body></html>`;
+    stubNet(null, { "chenzhongtech.com/fw/photo/3xq2": page });
+
+    const res = await kuaishouCore.parseKuaishou("https://www.kuaishou.com/photo/3xq2");
+
+    expect(res.code).toBe(200);
+    expect("qualities" in res.data).toBe(false);
+    expect(res.data.photoUrl).toBe(`${FIXED}/default.mp4`);
+  });
+});
+
+/**
  * 快手作者字段口径。
  *
  * 匿名分享页只有一层：`photo` 给昵称/头像/作者ID/userEid；`counts` 是混合对象——

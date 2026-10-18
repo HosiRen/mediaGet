@@ -1,16 +1,19 @@
 import type { VideoPlatformKey } from "../config/video-platforms";
 
-/** 单个清晰度直链（bilibili） */
+/** 单个清晰度直链（B站及已接入档位表的平台） */
 export interface ParsedVideoQuality {
-  /** 清晰度档位 id（64=480P、80=720P、112=1080P、127=1080P+ 等） */
+  /**
+   * 平台档位值：B站为 qn（64=480P、80=720P、112=1080P、127=1080P+ 等）；
+   * 其余平台为高度 px（如 1080），无高度时退回码率（如 2176000）。
+   */
   quality: number;
-  /** 清晰度展示标签，如 "高清 1080P" */
+  /** 清晰度展示标签，如 "高清 1080P"、"1080p"、"2176kbps" */
   label: string;
   /** 该清晰度视频直链 */
   url: string;
 }
 
-/** 多分P / 多清晰度视频项（bilibili 等） */
+/** 多分P / 多清晰度视频项（B站分P、微博多P、X 多视频等） */
 export interface ParsedVideoItem {
   title?: string;
   url: string;
@@ -25,7 +28,7 @@ export interface ParsedVideoItem {
   qualityLabel?: string;
   /** B站可用清晰度名称列表（accept_description），与 qualities 的档位一一对应 */
   accept?: string[];
-  /** 可选清晰度直链列表（bilibili 按档位请求，可下载） */
+  /** 本条视频的可选清晰度直链列表（多P 内容逐 P 下发；≥2 档才出现） */
   qualities?: ParsedVideoQuality[];
   /** 分P封面（B站 pages[].pic，可能为空，前端可回退到整体封面） */
   cover?: string;
@@ -96,13 +99,14 @@ export interface ParseData {
   /** 降级标记：直链解析源不可用、仅官方嵌入可用的成功结果（无 url/audioUrl，后端不写缓存，解析源恢复后重试即可拿直链） */
   embedOnly?: boolean;
   /**
-   * 最佳直链清晰度展示（如 "1080p"；YouTube 直链来源解析不出清晰度时省略）。
-   * 微博只在单P 视频帖下发（多P 各档可不同，落 videos[].qualityLabel）。
+   * 最佳直链清晰度展示（如 "1080p"；平台解析不出清晰度时省略）。
+   * 单视频挂顶层；多P/多分P 各档可能不同，落 `videos[].qualityLabel`。
    */
   qualityLabel?: string;
   /**
-   * 可下载清晰度档位列表（B站 videos[].qualities 的平台级对齐字段）：
-   * ≥2 档时前端在下载选项行渲染 B站同款行内清晰度下拉，单档仍由 qualityLabel 徽标展示。
+   * 可下载清晰度档位列表：单视频挂顶层；多P/多分P 挂在 `videos[]`，顶层不写整体档位。
+   * ≥2 档时前端渲染行内清晰度下拉，**不足 2 档不下发**（单档仍由 qualityLabel 徽标展示）。
+   * 现有平台：B站、微博、快手、小红书、抖音、X、Instagram、TikTok。
    * YouTube 只下发「合流（含音轨）」的可直接下载档位，分离流（无声视频）不入列。
    */
   qualities?: ParsedVideoQuality[];

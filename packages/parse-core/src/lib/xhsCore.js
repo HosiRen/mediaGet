@@ -4,6 +4,7 @@
 import { TIMEOUT, UA_EDGE_WIN129 } from "./http";
 import { logger } from "./api-utils";
 import { getConfigOrEnv } from "../config";
+import { buildQualityList } from "./quality";
 
 /** 小红书 H5：桌面 Chrome UA，短链统一走 https */
 const XHS_USER_AGENT = UA_EDGE_WIN129;
@@ -690,19 +691,41 @@ export async function xhsParse(url) {
 
     // 检查视频URL
     let videoUrl = null;
+    let videoQualities;
     const videoStream = safeGet(noteData, "video.media.stream");
 
     if (videoStream && typeof videoStream === "object") {
-      // h264 优先（浏览器兼容性最好），h265 兜底；均优先取裸直链
-      const h264List = videoStream.h264;
-      if (Array.isArray(h264List) && h264List.length > 0 && h264List[0]) {
-        videoUrl = await pickStableVideoUrl(h264List[0]);
-      }
-      if (!videoUrl) {
-        const h265List = videoStream.h265;
-        if (Array.isArray(h265List) && h265List.length > 0 && h265List[0]) {
-          videoUrl = await pickStableVideoUrl(h265List[0]);
-        }
+      // h264 优先（浏览器兼容性最好），h265 兜底；h264 列表本身就是多档位表，
+      // 逐档 HEAD 选稳定节点后按高度降序映射为契约 qualities。
+      const h264List = Array.isArray(videoStream.h264)
+        ? videoStream.h264.filter(Boolean)
+        : [];
+      const h265List = Array.isArray(videoStream.h265)
+        ? videoStream.h265.filter(Boolean)
+        : [];
+      const list = h264List.length ? h264List : h265List;
+      if (list.length) {
+        const stableUrls = await Promise.all(list.map(pickStableVideoUrl));
+        const resolved = list
+          .map((entry, i) => ({ entry, url: stableUrls[i] }))
+          .filter(({ url }) => url)
+          .sort(
+            (a, b) =>
+              (Number(b.entry.height) || 0) - (Number(a.entry.height) || 0) ||
+              (Number(b.entry.width) || 0) - (Number(a.entry.width) || 0)
+          );
+        videoUrl = resolved[0]?.url || null;
+        videoQualities = buildQualityList(
+          resolved.map(({ entry, url }) => {
+            const height = Number(entry.height) || 0;
+            const width = Number(entry.width) || 0;
+            return {
+              quality: height || width,
+              label: height ? `${height}p` : width ? `${width}w` : "",
+              url,
+            };
+          })
+        );
       }
     }
 
@@ -721,6 +744,7 @@ export async function xhsParse(url) {
         ).replace(/^http:/i, "https:");
       }
       data.url = videoUrl;
+      if (videoQualities) data.qualities = videoQualities;
       data.type = "video";
       return output(200, "解析成功", data);
     }

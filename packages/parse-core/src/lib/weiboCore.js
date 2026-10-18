@@ -1,5 +1,6 @@
 /** P0 抽取自 app/api/weibo/route.js，逻辑逐字搬移，行为零变化 */
 import { TIMEOUT } from "./http";
+import { buildQualityList } from "./quality";
 
 /**
  * 微博视频解析（游客模式，无需登录 Cookie）
@@ -260,11 +261,24 @@ function pickBestPlayback(mediaInfo) {
   candidates.sort(
     (a, b) => Number(b.meta.quality_index || 0) - Number(a.meta.quality_index || 0)
   );
+  // playback_list 本身就是全档位表（实测 1080/720/480），逐档映射给前端下拉；
+  // 最高档同时作为单直链出口。type=3 的 scrubber 已在上面滤掉。
+  const qualities = buildQualityList(
+    candidates.map(({ meta, play }) => {
+      const index = Number(meta.quality_index || 0);
+      return {
+        quality: index,
+        label: String(meta.quality_label || (index ? `${index}P` : "")),
+        url: normalizeUrl(play.url),
+      };
+    })
+  );
   const { meta, play } = candidates[0];
   const index = Number(meta.quality_index || 0);
   return {
     url: normalizeUrl(play.url),
     qualityLabel: String(meta.quality_label || (index ? `${index}P` : "")),
+    qualities,
   };
 }
 
@@ -553,6 +567,7 @@ function extractFromDesktopShow(json) {
       duration: secondsToMs(media.duration),
       durationFormat: formatSeconds(media.duration),
       qualityLabel: best?.qualityLabel || "",
+      ...(best?.qualities ? { qualities: best.qualities } : {}),
       cover: readPagePic(pi),
     });
   }
@@ -574,6 +589,7 @@ function extractFromDesktopShow(json) {
           duration: secondsToMs(media.duration),
           durationFormat: formatSeconds(media.duration),
           qualityLabel: best?.qualityLabel || "",
+          ...(best?.qualities ? { qualities: best.qualities } : {}),
           cover: readPagePic(data),
         });
       }
@@ -644,6 +660,7 @@ function extractFromDesktopShow(json) {
       duration: videos.length === 1 ? first.duration : undefined,
       qualityLabel:
         videos.length === 1 ? first.qualityLabel || undefined : undefined,
+      qualities: videos.length === 1 ? first.qualities : undefined,
       type: "video",
     };
   }
