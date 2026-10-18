@@ -77,7 +77,6 @@ npm run build:cf     # OpenNext Cloudflare 构建（产物 .open-next/）
 ## 部署
 
 - **Vercel**：导入即用；注意公共 GD 上游对数据中心出口会触发 CF 人机校验，`/api/music` 需 `MUSIC_API_BASE(S)` 指向可直连实例；TikTok（yt-dlp child_process）在 Serverless 不可用。
-- **Cloudflare Workers**（OpenNext）：`npm run build:cf` → `.open-next/`；`wrangler.toml` 已配 `[vars]`/`[assets]`；敏感 Cookie 经 GitHub Actions `wrangler secret put` 注入（`.github/workflows/deploy-cloudflare.yaml`）。
 - **Docker（当前线上正式运行方式）**：多阶段 `Dockerfile`（standalone 产物）内置 yt-dlp + ffmpeg（TikTok 依赖）并以非 root 运行。发布已**不再走 GitHub Actions**（原 `.github/workflows/deploy-to-docker.yaml` 移除）：改本地/服务器 `docker build -t <image> .` 后手动跑容器，等价运行参数：
   `docker run -d --name <repo> --restart unless-stopped --init --env-file /opt/1panel/apps/openresty/openresty/www/sites/parse.shenzjd.com/index/.env -p 5269:3000 <image>`
   （`--init` 必需：node 作 PID1 不回收孤儿进程；PO Token 用的 bgutil 容器是独立自建工程，本仓不启停，地址经 `.env` 的 `POT_BASE_URL` 配置）。历史自动发布配方留在 git 历史里可查。

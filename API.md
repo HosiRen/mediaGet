@@ -1050,8 +1050,6 @@ STATS_API_KEY=your_stats_key
 # VIDEO_PARSE_ENABLED=true
 ```
 
-> Cloudflare Workers 部署时：`BILIBILI_USER_AGENT` 已写入 `wrangler.toml` 的 `[vars]`；Cookie 类敏感值在 CI 中由 GitHub Secrets 自动 `wrangler secret put` 注入，无需手动配置。
-
 ---
 
 ## 错误处理
