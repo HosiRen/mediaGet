@@ -404,6 +404,7 @@ GET /api/kuaishou?url=https://v.kuaishou.com/abcdEF
 - **视频取 `playback_list` 最高档**：`media_info` 的平铺字段（`mp4_hd_url` / `stream_url_hd` / `mp4_720p_mp4` / `h265_*` / `inch_*`）实测全指向同一个 720p 文件；表里还混有 `meta.type=3` 的 `scrubber_hd` 进度条预览图（指向 jpg），只按 `quality_index` 排序不滤 type 就会把 jpg 当视频。清晰度文案用 `quality_label`，`quality_desc` 对 1080p 与 720p 都写「高清」，不可区分。
 - **`media_info.author_name` 是素材作者**（实测一条央视新闻投稿 ≠ 博文作者），不得覆盖 `author`。
 - **图集按 `pic_ids` 保序**，逐张从 `pic_infos` 取档位：`largest` 最大而 `original` 反而小，字段名与体积无关；livephoto 的动态直链在 `pic_infos[pid].video`，其静态帧兼作封面后不再进图集（手机侧对应 `pics[].videoSrc`）。
+- **混排帖（视频 + 图片）的媒体在 `mix_media_info.items`**：顶层没有 `page_info` / `pics`，`pic_ids` 只列图片项。视频项 `data` 是 `page_info` 形态（`media_info` + `page_pic`），图片项 `data` 是 `pic_infos` 档位表形态；两类都要读，结果仍为 `type: "video"` 且 `images[]` 并存。只读 `page_info` / `pic_ids` 会把视频丢掉、整帖误判成图集。
 - **粉丝数取作者接口的精确整数**：手机通道返回 `"129.8万"`，收成 number 得到假精确 1298000（真值 1298045）。
 - **作者接口失败态是 HTTP 200 + 业务错误体**（`{"error_type":"link","url":".../sorry?usernotexists"}`、`{"user":{},"message":"用户不存在","abnormal":true}`），不能按状态码判；只认 `data.user` 里有 `screen_name` 或 `idstr`。
 - **两道同人校验**：作者卡片 uid 与 `data.authorId` 不一致（转发场景）整体不合并；作者接口不可用时退化到手机通道的内嵌 user 只回补 `sign` / `followingCount` / `followerCount` 三项。

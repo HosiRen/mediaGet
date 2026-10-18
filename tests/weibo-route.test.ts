@@ -364,6 +364,56 @@ describe("微博：桌面双接口主通道 + 手机降级", () => {
     expect(unproxify(json.data.cover)).toBe("https://wx1.sinaimg.cn/large/pLive.jpg");
   });
 
+  it("混排帖：视频在 mix_media_info.items，不能被当成纯图集丢掉", async () => {
+    // 实测形态（mid 5355394283342657）：顶层无 page_info / pics / pic_infos，
+    // pic_ids 只列图片项，视频与图片都在 mix_media_info.items 里
+    const pic = (id) => ({
+      largest: { url: `https://wx1.sinaimg.cn/large/${id}.jpg` },
+      mw2000: { url: `https://wx1.sinaimg.cn/mw2000/${id}.jpg` },
+    });
+    const show = desktopVideo({
+      page_info: undefined,
+      pic_num: 3,
+      pic_ids: ["pA", "pB"],
+      pic_infos: {},
+      mix_media_info: {
+        items: [
+          {
+            type: "video",
+            id: "1034:123",
+            data: {
+              content1: "混排视频",
+              page_pic: "https://wx1.sinaimg.cn/orj480/mix-cover.jpg",
+              media_info: {
+                duration: 9,
+                playback_list: [
+                  { meta: { label: "mp4_1080p", quality_index: 1080, quality_label: "1080p", type: 1 }, play_info: { url: U1080 } },
+                  { meta: { label: "mp4_720p", quality_index: 720, quality_label: "720p", type: 1 }, play_info: { url: U720 } },
+                ],
+              },
+            },
+          },
+          { type: "pic", id: "pA", data: pic("pA") },
+          { type: "pic", id: "pB", data: pic("pB") },
+        ],
+      },
+    });
+    stubWeiboNet({ show, profile: desktopProfile() });
+
+    const json = await get("mixed");
+
+    expect(json.code).toBe(200);
+    expect(json.data.type).toBe("video");
+    expect(json.data.url).toBe(U1080);
+    expect(json.data.qualityLabel).toBe("1080p");
+    expect(json.data.duration).toBe(9000);
+    expect(unproxify(json.data.cover)).toContain("/orj480/mix-cover.jpg");
+    // 视频照常是主媒体，图片作为图集并存，且按 items 顺序取 largest 档
+    expect(json.data.images).toHaveLength(2);
+    expect(unproxify(json.data.images[0])).toBe("https://wx1.sinaimg.cn/large/pA.jpg");
+    expect(unproxify(json.data.images[1])).toBe("https://wx1.sinaimg.cn/large/pB.jpg");
+  });
+
   it("多P：逐P下发档位与时长，顶层不写「整体清晰度」", async () => {
     const part = (n, tiers) => ({
       type: 11,

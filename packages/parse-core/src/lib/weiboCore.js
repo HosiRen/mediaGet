@@ -13,7 +13,8 @@ import { TIMEOUT } from "./http";
  *  2. GET  /visitor/visitor?a=incarnate&t={tid}&w=2&c=100 → 拿 SUB/SUBP 访客 Cookie；
  *  3. 链接是 fid（1034:xxx）时先用 tv/api/component 换成真实 mid（桌面接口不认 fid，直接 400）；
  *  4. 主通道 桌面 GET weibo.com/ajax/statuses/show?id={bid|mid} —— 作品主体：正文 / pic_ids+pic_infos
- *     图集最大档 / playback_list 最高清晰度 / region_name / 作者级获赞；
+ *     图集最大档 / mix_media_info.items 混排（视频+图片）/ playback_list 最高清晰度 /
+ *     region_name / 作者级获赞；
  *  5. 作者卡 桌面 GET weibo.com/ajax/profile/info?uid={authorId} —— 简介 / 关注 / 精确粉丝 /
  *     认证说明 / 微博总数（第 4 步内嵌的 user 没有这些）；
  *  6. 第 4 步失败 → 降级 GET m.weibo.cn/statuses/show；再失败 → 降级 tv/api/component。
@@ -527,8 +528,15 @@ function extractFromDesktopShow(json) {
     : Object.keys(status.pic_infos || {});
   const picInfos = status.pic_infos || {};
 
-  // 1) 视频：page_info 主视频（playback_list 优先）→ 再看图集里的 livephoto 直链
+  // 1) 视频：page_info 主视频（playback_list 优先）→ mix_media_info 混排项 →
+  //    图集里的 livephoto 直链。同一视频可能出现在多个来源，按直链去重。
   const videos = [];
+  const seenVideoUrls = new Set();
+  const pushVideo = (v) => {
+    if (!v?.url || seenVideoUrls.has(v.url)) return;
+    seenVideoUrls.add(v.url);
+    videos.push(v);
+  };
   const pageInfos = Array.isArray(status.page_info)
     ? status.page_info
     : status.page_info
@@ -539,7 +547,7 @@ function extractFromDesktopShow(json) {
     const best = pickBestPlayback(media);
     const url = best?.url || normalizeUrl(pickMediaUrl({ media_info: media, ...pi }));
     if (!url) continue;
-    videos.push({
+    pushVideo({
       title: (pi.content1 || pi.title || "").trim(),
       url,
       duration: secondsToMs(media.duration),
@@ -548,12 +556,46 @@ function extractFromDesktopShow(json) {
       cover: readPagePic(pi),
     });
   }
+  // 混排帖（视频 + 图片）：媒体全部在 mix_media_info.items，顶层没有 page_info/pics。
+  // 视频项 data 是 page_info 形态（media_info + page_pic），图片项 data 是档位表形态。
+  const mixItems = Array.isArray(status.mix_media_info?.items)
+    ? status.mix_media_info.items
+    : [];
+  for (const item of mixItems) {
+    const data = item?.data;
+    if (item?.type === "video" && data) {
+      const media = data.media_info || {};
+      const best = pickBestPlayback(media);
+      const url = best?.url || normalizeUrl(pickMediaUrl(data));
+      if (url) {
+        pushVideo({
+          title: (data.content1 || data.page_title || "").trim(),
+          url,
+          duration: secondsToMs(media.duration),
+          durationFormat: formatSeconds(media.duration),
+          qualityLabel: best?.qualityLabel || "",
+          cover: readPagePic(data),
+        });
+      }
+    } else if (item?.type === "pic" && data) {
+      const mov = normalizeUrl(data.video || "");
+      // livephoto 的 still 兼作封面，不进图集（与手机通道口径一致）
+      if (mov) {
+        pushVideo({
+          title: "",
+          url: mov,
+          duration: undefined,
+          durationFormat: "",
+          cover: pickRenditionUrl(data),
+        });
+      }
+    }
+  }
   for (const pid of picIds) {
     const info = picInfos[pid] || {};
     const mov = normalizeUrl(info.video || "");
-    // livephoto 的 still 兼作封面，不进图集（与手机通道口径一致）
-    if (mov && !videos.some((v) => v.url === mov)) {
-      videos.push({
+    if (mov) {
+      pushVideo({
         title: "",
         url: mov,
         duration: undefined,
@@ -563,15 +605,31 @@ function extractFromDesktopShow(json) {
     }
   }
 
-  // 2) 图集：按 pic_ids 顺序取最大档，再剔除被各视频封面占用的那张
+  // 2) 图集：混排图片项与 pic_ids 均按原顺序取最大档；同一张图（不同尺寸标识）
+  //    只留一张，并剔除被各视频封面占用的那张
   const videoCoverKeys = new Set();
   for (const v of videos) {
     const k = sinaImageKey(v.cover || "");
     if (k) videoCoverKeys.add(k);
   }
-  const images = picIds
-    .map((pid) => pickRenditionUrl(picInfos[pid]))
-    .filter((u) => u && !videoCoverKeys.has(sinaImageKey(u)));
+  const imageCandidates = [];
+  for (const item of mixItems) {
+    if (item?.type === "pic" && item.data) {
+      imageCandidates.push(pickRenditionUrl(item.data));
+    }
+  }
+  for (const pid of picIds) {
+    imageCandidates.push(pickRenditionUrl(picInfos[pid]));
+  }
+  const images = [];
+  const seenImageKeys = new Set();
+  for (const u of imageCandidates) {
+    if (!u) continue;
+    const k = sinaImageKey(u) || u;
+    if (videoCoverKeys.has(k) || seenImageKeys.has(k)) continue;
+    seenImageKeys.add(k);
+    images.push(u);
+  }
 
   if (videos.length > 0) {
     const first = videos[0];
