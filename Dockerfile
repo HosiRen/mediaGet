@@ -4,8 +4,10 @@
 # 出镜像方式（原 .github/workflows/deploy-to-docker.yaml 已移除）：本地或服务器上
 #   docker build -t <image> .  →  docker run（运行参数见 CLAUDE.md「部署」）
 # CI（.github/workflows/ci.yaml）只跑 test + tsc + next build，不构建镜像。
+#
+# 基镜像：Next 16 最低要求 Node 20.9，而 20.x 已于 2026-04 EOL，三个阶段统一用 22-alpine。
 
-FROM node:20-alpine AS deps
+FROM node:22-alpine AS deps
 
 # 国内 npm 镜像源加速
 RUN npm config set registry https://registry.npmmirror.com
@@ -18,7 +20,7 @@ RUN npm ci
 # =============================================================================
 # 阶段 2：builder — 编译 Next.js 应用
 # =============================================================================
-FROM node:20-alpine AS builder
+FROM node:22-alpine AS builder
 
 RUN npm config set registry https://registry.npmmirror.com
 
@@ -39,7 +41,7 @@ RUN npm run build
 # =============================================================================
 # 阶段 3：runner — 最小运行时镜像
 # =============================================================================
-FROM node:20-alpine AS runner
+FROM node:22-alpine AS runner
 
 WORKDIR /app
 

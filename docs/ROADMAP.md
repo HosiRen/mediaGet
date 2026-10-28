@@ -101,7 +101,7 @@
 ### Phase 6 — 移动端体验优化与 PWA
 **目标**：移动端打磨 + 可安装 PWA。
 - [ ] 移动端触控优化、结果卡片移动布局、底部操作栏
-- [ ] PWA 完善（已有 `@ducanh2912/next-pwa` + manifest：补图标、离线缓存、安装提示）
+- [ ] PWA 完善（已有 `@serwist/next` + manifest：补图标、离线缓存、安装提示）
 - [ ] Lighthouse 性能优化
 
 **验收**：移动端 Lighthouse PWA 达标。

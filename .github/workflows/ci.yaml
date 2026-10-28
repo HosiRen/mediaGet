@@ -3,7 +3,8 @@ name: CI
 # 上游质量门：解析内核已抽到 packages/parse-core，web 侧只剩 re-export 薄壳，
 # 桌面仓（mediaGet-desktop）经 @/lib/* 物理链接消费同一真源。因此每次 push/PR 都要验：
 #   单测（含 tests/parse-core-shells.test.ts 的薄壳 ↔ 真源一一对应守卫）
-#   + 类型 + next build（源码首次分布在 src 之外，打包/trace 必须在 CI 兜住）
+#   + 类型 + Cloudflare 构建（npm run build:cf：内部先跑 next build，再产出 OpenNext
+#     Workers 产物；源码首次分布在 src 之外，打包/trace 必须在 CI 兜住）
 # 本工作流只做质量门，不部署；出镜像用仓库里的 Dockerfile 本地/服务器构建即可。
 
 on:
@@ -46,5 +47,7 @@ jobs:
       - name: Check parse-core dependency boundaries
         run: node scripts/check-parse-core-deps.mjs
 
-      - name: Next build
-        run: npm run build
+      # build:cf 内含 next build（OpenNext 会以 standalone 模式执行 npm run build），
+      # 因此这一步同时校验常规 Next 产物与 Cloudflare Workers 产物，无需再单独 build。
+      - name: Build (Next + Cloudflare)
+        run: npm run build:cf

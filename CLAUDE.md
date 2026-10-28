@@ -6,7 +6,7 @@
 
 ## 项目概况
 
-`mediaGet`（品牌「即刻解析」，线上 <https://get.hotier.cc.cd>）是一个 Next.js 15（App Router + React 19）解析下载站，含两大产品模块：
+`mediaGet`（品牌「即刻解析」，线上 <https://get.hotier.cc.cd>）是一个 Next.js 16（App Router + React 19）解析下载站，含两大产品模块：
 
 1. **视频/图文/音乐内容解析（首页 `/`）**：支持 **13 个平台**（抖音、快手、微博、哔哩哔哩、小红书、汽水音乐、西瓜视频、最右、AcFun、TikTok、X/Twitter、Instagram、YouTube），输入分享链接 / 整段分享文案 /（部分平台）`source+id`，自动识别平台与内容类型并输出无水印直链（清单以 `src/config/video-platforms.ts` 与 README 为准；QQ音乐 的歌曲链接归音乐区，不走视频解析核心）。
 2. **音乐解析中心（`/music`）**：多源聚合搜歌 / 试听 / 播放 / 歌词 / 封面 / 下载——默认 GD 聚合上游（`/api/music`，网易云/酷我/JOOX 等搜索）+ 自研直连搜索（`/api/music/self`，服务器直连腾讯/酷狗/咪咕等五家搜索，独立搜索源 chips）+ 歌曲链接解析（`/api/music/resolve`，酷狗与「被停用播放引擎的 QQ」返回 `engine-missing`）。平台「搜索引擎 / 播放引擎」为部署可配开关（env 覆盖 + 设置页 `/music/settings` 写 Turso 配置文档 `music.flags`，两维默认 6 平台全开）。**完整链路、开关变量与求值顺序见 `docs/architecture.md` §3 与 API.md §12。**
@@ -19,7 +19,7 @@
 
 ```bash
 npm run dev          # 开发（next dev --turbopack）
-npm run build        # 生产构建
+npm run build        # 生产构建（next build --webpack，Serwist 需要 webpack）
 npm start            # 生产运行
 npm run lint
 npm test             # 单元测试（vitest run，纯本地无外网）
@@ -39,6 +39,7 @@ npm run build:cf     # OpenNext Cloudflare 构建（产物 .open-next/）
 1. **平台/功能路由一律 `createApiHandler(parseFn)` 包装**，不要绕过中间件自造轮子（CORS / 蜜罐 / 限流 / SSRF / 归一化 / 缓存 / 统计全在职责链里）。
 2. **域名唯一真源是 `lib/platforms.ts` 的 `PLATFORM_INFO`**：`ROUTE_DOMAIN_MAP`（中间件白名单）与 `ALL_DOMAINS` 都由它推导；另写一份会被 `tests/platform-metadata.test.ts` 挡下。
 3. **依赖方向单向**：`src/lib/**` 不得 import `src/components/**`；跨模块共享类型放 `src/types/`。
+4. **改 `packages/parse-core/**` 前必须先向用户报告**：这是独立发布的解析内核，web 薄壳（`src/lib/*`）、桌面端、CLI 与外部 npm 使用者共用同一份代码，改它等于改下游契约。动手前列出改动文件、行为变化、公开导出是否变动与 semver 级别（major / minor / patch），确认后再改；未被点名不要顺手改。
 
 ## 环境变量
 
@@ -77,9 +78,12 @@ npm run build:cf     # OpenNext Cloudflare 构建（产物 .open-next/）
 ## 部署
 
 - **Vercel**：导入即用；注意公共 GD 上游对数据中心出口会触发 CF 人机校验，`/api/music` 需 `MUSIC_API_BASE(S)` 指向可直连实例；TikTok（yt-dlp child_process）在 Serverless 不可用。
-- **Docker（当前线上正式运行方式）**：多阶段 `Dockerfile`（standalone 产物）内置 yt-dlp + ffmpeg（TikTok 依赖）并以非 root 运行。发布已**不再走 GitHub Actions**（原 `.github/workflows/deploy-to-docker.yaml` 移除）：改本地/服务器 `docker build -t <image> .` 后手动跑容器，等价运行参数：
+- **Docker（当前线上正式运行方式）**：多阶段 `Dockerfile`（standalone 产物，基镜像 `node:22-alpine`——Next 16 最低 20.9，20.x 已 EOL）内置 yt-dlp + ffmpeg（TikTok 依赖）并以非 root 运行。发布已**不再走 GitHub Actions**（原 `.github/workflows/deploy-to-docker.yaml` 移除）：改本地/服务器 `docker build -t <image> .` 后手动跑容器，等价运行参数：
   `docker run -d --name <repo> --restart unless-stopped --init --env-file /opt/1panel/apps/openresty/openresty/www/sites/parse.shenzjd.com/index/.env -p 5269:3000 <image>`
   （`--init` 必需：node 作 PID1 不回收孤儿进程；PO Token 用的 bgutil 容器是独立自建工程，本仓不启停，地址经 `.env` 的 `POT_BASE_URL` 配置）。历史自动发布配方留在 git 历史里可查。
-- **CI**：`.github/workflows/ci.yaml`——push main / PR / 手动触发，跑 `npm test`（含 `tests/parse-core-shells.test.ts` 的 parse-core 薄壳 ↔ 真源一致性守卫）→ `tsc --noEmit` → `next build`。只检查，不部署、不出镜像。
+- **Cloudflare Workers（OpenNext）**：`wrangler.toml` + `open-next.config.ts`（无 ISR，静态页走 `ASSETS` 绑定直出，解析结果缓存由 `src/lib/result-cache.js` 的 Cache API 层负责）。命令：`npm run build:cf` → `npm run preview:cf`（workerd 本地预演）→ `npm run deploy:cf`；也可手动触发 `.github/workflows/deploy-cloudflare.yaml`（需仓库 Secrets `CF_API_TOKEN` / `CF_ACCOUNT_ID`），运行时敏感变量用 `npx wrangler secret put <NAME>`。兼容面：`compatibility_date = 2026-03-17` + `nodejs_compat`——`node:http(s)` 客户端自 2025-08-15、`child_process` 桩自 2026-03-17 起才随 compat 生效，调低会分别破坏抖音 DoH 兜底与 TikTok 路由加载（两者现已改为惰性 import，不支持时只降级不炸包）。TikTok 无 yt-dlp，仅 Docker 可用；免费档 10ms CPU / 50 子请求/次 撑不住重试链路，线上用 Paid。
+- **Netlify（备用 / 演示）**：根目录 `netlify.toml`（Next.js Runtime v5，`build` 仍走 `npm run build` 以保留 `--webpack`）。可用：页面、静态资源、解析接口、音乐链路；不可用/受限：同步函数默认 10s 超时（IG 20s、YouTube 双源、B站重试易超时）、响应体 6MB 上限（`/api/video-proxy` 大视频被截断，Range 透传无保证）、无子进程（TikTok 不可），`result-cache` 无 Cache API 时退化为进程内 Map。敏感变量走 Site settings → Environment variables。
+- **CI**：`.github/workflows/ci.yaml`——push main / PR / 手动触发，跑 `npm test`（含 `tests/parse-core-shells.test.ts` 的 parse-core 薄壳 ↔ 真源一致性守卫）→ `tsc --noEmit` → `npm run build:cf`（内含 `next build`，同时校验常规 Next 产物与 OpenNext Workers 产物，不再单独跑 `next build`）。只检查，不部署、不出镜像；Cloudflare 部署是独立的 `deploy-cloudflare.yaml`（手动触发，只发布，构建校验由 CI 负责）。
+- **Next 版本**：Next 16.4.3（16 默认 Turbopack，但 `npm run build` 显式带 `--webpack`——PWA 仍靠 webpack 插件在构建期产出 SW）。PWA 已从停更的 `@ducanh2912/next-pwa` 迁到 `@serwist/next`：SW 源码 `src/sw.ts`，运行时缓存规则（`/api` 永不缓存 / 文档 NetworkFirst / 静态资源 SWR）在该文件里维护；dev 下 `disable` 关闭 SW，所以 `next dev --turbopack` 不受影响。OpenNext 与 Next 16 搭配有硬门槛：`@opennextjs/cloudflare` >= 1.20.13（peer `next >=16.4.1`）且 `wrangler` >= 4.148，低于此会出现 `Unexpected loadManifest(...preview-props.json)` 之类的 server manifest 报错。
 - **`package-lock.json` 只能用 npm 10 重生成**（CI 的 node 22 自带 npm 10）。本机 npm 11 写锁会裁掉跨平台 optional 叶子（`@esbuild/*`、`@cloudflare/workerd-*`）和 wasm peer（`@emnapi/core`、`@emnapi/wasi-threads`），ubuntu runner 上 `npm ci` 随即报 `Missing: ... from lock file`。改依赖后若在本机生成过锁，先 `npx npm@10 ci --dry-run`（干净临时目录里）验证再提交。
 - 开发依赖含 `@opennextjs/cloudflare`（`build:cf`）、`vitest`；未配置 prettier/format 脚本，代码风格靠 ESLint（`npm run lint`）约束。改动组件后跑 `npm run lint` 自查。
