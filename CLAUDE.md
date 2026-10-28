@@ -6,7 +6,7 @@
 
 ## 项目概况
 
-`mediaGet`（品牌「即刻解析」，线上 <https://get.hotier.cc.cd>）是一个 Next.js 16（App Router + React 19）解析下载站，含两大产品模块：
+`MadiaGet`（品牌「即刻解析」，线上 <https://get.hotier.cc.cd>）是一个 Next.js 16（App Router + React 19）解析下载站，含两大产品模块：
 
 1. **视频/图文/音乐内容解析（首页 `/`）**：支持 **13 个平台**（抖音、快手、微博、哔哩哔哩、小红书、汽水音乐、西瓜视频、最右、AcFun、TikTok、X/Twitter、Instagram、YouTube），输入分享链接 / 整段分享文案 /（部分平台）`source+id`，自动识别平台与内容类型并输出无水印直链（清单以 `src/config/video-platforms.ts` 与 README 为准；QQ音乐 的歌曲链接归音乐区，不走视频解析核心）。
 2. **音乐解析中心（`/music`）**：多源聚合搜歌 / 试听 / 播放 / 歌词 / 封面 / 下载——默认 GD 聚合上游（`/api/music`，网易云/酷我/JOOX 等搜索）+ 自研直连搜索（`/api/music/self`，服务器直连腾讯/酷狗/咪咕等五家搜索，独立搜索源 chips）+ 歌曲链接解析（`/api/music/resolve`，酷狗与「被停用播放引擎的 QQ」返回 `engine-missing`）。平台「搜索引擎 / 播放引擎」为部署可配开关（env 覆盖 + 设置页 `/music/settings` 写 Turso 配置文档 `music.flags`，两维默认 6 平台全开）。**完整链路、开关变量与求值顺序见 `docs/architecture.md` §3 与 API.md §12。**
@@ -56,6 +56,7 @@ npm run build:cf     # OpenNext Cloudflare 构建（产物 .open-next/）
 - 统计：`TURSO_DB_URL` + `TURSO_AUTH_TOKEN`（未配置静默禁用）、`STATS_API_KEY`（`/api/stats` Bearer，未配置 403）、`TURSO_HTTP_TIMEOUT_MS`（可选，Turso 单次请求超时，默认 8000ms，夹在 500~60000；跨境链路或经代理访问 `turso.io` 慢时用它放宽，3s 级超时在跨境链路上必然误报「存储不可用」）。
 - 平台引擎与设置页：`MUSIC_PLATFORM_SEARCH` / `MUSIC_PLATFORM_PLAY`（正向覆盖，JSON 对象或 `"all"`）、`MUSIC_PLATFORM_SEARCH_DISABLED` / `MUSIC_PLATFORM_PLAY_DISABLED` / `MUSIC_PLATFORM_OFF`（黑名单，最终闸门）；`MUSIC_BUILTIN_PLAY`（**内置播放引擎总开关**：站点自带取直链通道 GD / 自研直连的总闸，`off` = 运维终闸 / 设置页「部署锁定」，`on` / 留空 = 基线开启可由面板开关；关闭后 `action=url` 一律 400、resolve 回 `engine-missing`，**搜索等数据通道不受影响**）；`SETTINGS_API_KEY`（设置页登录密钥，亦为 `PUT`/`DELETE /api/music/caps` 的 Bearer 密钥；未配置时 caps 端点 `editable=false`、设置页只读且无法登录）；`SETTINGS_SESSION_SECRET`（可选，设置页会话令牌签名密钥，缺省回落 `SETTINGS_API_KEY`，轮换即让全部会话失效）。
 - 开关：`VIDEO_PARSE_ENABLED`（`"true"` 才放开视频解析入口，wrangler `[vars]` 已配）。
+- 媒体代理：`/api/image`、`/api/video-proxy` 默认只中转平台已知媒体 CDN（清单在 `src/lib/proxy-guard.js`，非白名单域 403）；`PROXY_ALLOWED_HOSTS` 追加自建媒体域，`YOUTUBE_PIPED_HOSTS` / `YOUTUBE_INVIDIOUS_HOSTS` 自动放行；`PROXY_SSRF_STRICT` 默认 `true` 强拦截，`false` 回退仅记录。出站流量按「天 + 端点」写 Turso `proxy_traffic_daily`（`src/lib/proxy-traffic.js`，60s / 4MB / 500 次窗口聚合），经 `/api/stats` 的 `proxyTraffic` 查看；图片有 Cache API 边缘缓存（Workers 下生效，响应带 `X-Proxy-Cache`）。
 - 蜜罐：`NEXT_PUBLIC_SITE_URL`（蜜罐页引导 URL 前缀，默认站点）。
 - 测试：`RUN_LIVE_PARSE=1`、`RUN_LIVE_RESOLVE=1`、`LIVE_URL_*`（真机分享链接，模板 `tests/live/urls.example.env`，含可选 `LIVE_URL_BILIBILI_OPUS`）、`LIVE_PARSE_TIMEOUT_MS`（默认 120000）。单测内部还会读写 `VITEST=true`。
 - yt-dlp 备用封装：`YTDLP_BIN`、`YTDLP_TIMEOUT_MS`（默认 25000）。

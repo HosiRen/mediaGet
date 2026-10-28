@@ -3,6 +3,10 @@
 
 NEXTJS_ENV=development
 
+# 媒体代理：默认只放行各平台已知 CDN，自建媒体域用 PROXY_ALLOWED_HOSTS 追加
+# PROXY_ALLOWED_HOSTS=https://media.example.com
+# PROXY_SSRF_STRICT=false
+
 # 可选：敏感 Cookie 与存储
 # DOUYIN_COOKIE=
 # BILIBILI_COOKIE=
