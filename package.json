@@ -1,12 +1,30 @@
 {
-  "name": "tiny-wind-3b79",
+  "name": "madiaget",
   "version": "0.1.24",
-  "description": "这是一个基于Node.js的短视频解析API服务，支持多个平台的视频解析。",
-  "main": "index.js",
-  "keywords": [],
-  "author": "",
+  "description": "MadiaGet —— 短视频 / 图文 / 音乐统一解析下载站，粘贴分享链接或整段分享文案即得无水印直链。",
+  "keywords": [
+    "video-parser",
+    "video-downloader",
+    "douyin",
+    "bilibili",
+    "kuaishou",
+    "xiaohongshu",
+    "music",
+    "nextjs"
+  ],
+  "author": "hotier",
   "license": "MIT",
-  "private": true,
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/hotier/mediaGet.git"
+  },
+  "homepage": "https://get.hotier.cc.cd",
+  "bugs": {
+    "url": "https://github.com/hotier/mediaGet/issues"
+  },
+  "engines": {
+    "node": ">=22"
+  },
   "scripts": {
     "dev": "next dev --turbopack",
     "dev:lan": "next dev --turbopack -H 0.0.0.0",

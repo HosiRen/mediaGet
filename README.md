@@ -1,8 +1,8 @@
 <p align="center">
-  <img src="public/icon.svg" width="72" height="72" alt="mediaGet" />
+  <img src="public/icon.svg" width="72" height="72" alt="MadiaGet" />
 </p>
 
-<h1 align="center">即刻解析 · mediaGet</h1>
+<h1 align="center">即刻解析 · MadiaGet</h1>
 
 <p align="center">短视频解析 + 音乐解析下载服务：粘贴分享链接或整段分享文案，即得无水印直链。</p>
 
@@ -22,7 +22,7 @@
 
 > **免责声明**：本项目仅用于技术学习与搜索聚合演示，不存储、不传播任何受版权保护的内容，请勿用于商业或侵权用途。
 
-## 为什么是 mediaGet
+## 为什么是 MadiaGet
 
 - **一条链接出结果**：视频、图文、音乐统一解析，自动识别平台与内容类型
 - **不用手动挑链接**：整段分享文案直接粘贴，自动提取有效地址
@@ -90,16 +90,27 @@
 
   <a href="https://deploy.workers.cloudflare.com/?url=https://github.com/hotier/mediaGet"><img src="https://deploy.workers.cloudflare.com/button" alt="Deploy to Cloudflare" height="32" /></a>
 
-**方式A：控制台部署**
+**方式A：GitHub Actions 部署（推荐）**
 
-1. Cloudflare Dashboard → **Workers & Pages → Create → Connect to Git**，选择本仓库
-2. Build command 填 `npm run build:cf`，Deploy command 填 `npx wrangler deploy`
+仓库自带 `.github/workflows/deploy-cloudflare.yaml`，不需要 Workers Builds 权限，只用 Cloudflare API 发布：
+
+1. 在 **Settings → Secrets and variables → Actions** 配置 `CF_API_TOKEN`（权限 Workers Scripts:Edit）、`CF_ACCOUNT_ID`
+2. 到 Actions 页手动运行 **Deploy to Cloudflare Workers**，首次运行会自动创建 Worker
 3. **Settings → Variables and Secrets** 填入 Cookie、Turso、`SETTINGS_API_KEY` 等，敏感项选 **Secret**
 4. **Settings → Domains & Routes** 绑定域名，访问 `/api/health` 验证
 
-**方式B：GitHub Actions 部署**
+构建校验已在 CI 中完成，该工作流只负责发布。
 
-仓库自带 `.github/workflows/deploy-cloudflare.yaml`：在 **Settings → Secrets and variables → Actions** 配置 `CF_API_TOKEN`、`CF_ACCOUNT_ID`，再到 Actions 页手动运行 **Deploy to Cloudflare Workers**。构建校验已在 CI 中完成，该工作流只负责发布；运行时变量与密钥仍需在 Worker 控制台填写。
+**方式B：控制台 Git 集成**
+
+需要账户具备 Workers Builds 权限，否则面板会提示 `Your account is blocked from using Workers Builds`。
+
+1. Cloudflare Dashboard → **Workers & Pages → Create → Connect to Git**，选择本仓库
+2. 修改面板自动填充的命令：Build command 填 `npm run build:cf`，Preview command 填 `npx wrangler versions upload`（不需要预览可留空），Deploy command `npx wrangler deploy` 保持不变
+3. 添加构建变量 `NODE_VERSION=22`；Worker 名称、兼容日期、静态资源与绑定均由仓库的 `wrangler.toml` 提供，无需在面板填写
+4. **Settings → Variables and Secrets** 填入运行时配置
+
+> 不要使用面板的 Next.js 预设：它会默认走 vinext，并填入 `npm run build`、`npx wrangler preview`，前者只产出 `.next`、后者在 wrangler 4 中不存在，均与本仓库的 OpenNext 产物不兼容。
 
 > 构建命令 `npm run build:cf` 会先生成 OpenNext 产物。建议 Paid 套餐；TikTok 不可用。
 
@@ -141,6 +152,7 @@ docker run -d --name mediaget --restart unless-stopped --init \
 | `TURSO_DB_URL` / `TURSO_AUTH_TOKEN` | Turso 数据库，用于缓存、统计与设置持久化 |
 | `SETTINGS_API_KEY` | `/music/settings` 设置页登录密钥 |
 | `VIDEO_PARSE_ENABLED` | 视频解析入口开关，`true` 时开放 |
+| `PROXY_ALLOWED_HOSTS` | 追加媒体代理白名单（自建 CDN / 图床域名，逗号分隔） |
 
 配好 Turso 与设置密钥后，可经音乐页齿轮进入 `/music/settings` 在线调整平台开关与换源行为，无需重新部署。平台 Cookie 见「支持平台」。
 
